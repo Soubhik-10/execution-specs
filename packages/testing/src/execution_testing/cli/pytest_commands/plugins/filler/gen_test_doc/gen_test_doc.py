@@ -341,37 +341,35 @@ class TestDocsGenerator:
         This is required in order to include docs/javascripts/site.js, for
         example, in the standalone html pages.
 
-        Github pages deploys to a sub-directory "execution-spec-tests" and mike
-        deploys a version of the site underneath a sub-directory named after
-        the version, e.g.:
+        The docs are deployed to steel.ethereum.foundation/docs/<branch>/
+        with the MkDocs version provider for version switching:
 
-        - https://eest.ethereum.org/main/
-        - https://eest.ethereum.org/v4.1.0/
+        - https://steel.ethereum.foundation/docs/forks/amsterdam/
+        - https://steel.ethereum.foundation/docs/mainnet/
 
         We need to be able to include the javascript available at:
 
-        - https://eest.ethereum.org/main/javascripts/site.js
+        - https://steel.ethereum.foundation/docs/forks/amsterdam/javascripts/site.js
         """
+        # Check for SITE_URL first (set by CI workflow or user)
+        # and derive the base path from it
+        site_url = os.getenv("SITE_URL", None)
+        if site_url:
+            from urllib.parse import urlparse
+
+            return urlparse(site_url).path
+
         ci = os.getenv("CI", None)
         github_ref_name = os.getenv("GITHUB_REF_NAME", None)
-        doc_version = os.getenv("GEN_TEST_DOC_VERSION", None)
         if ci and github_ref_name:
-            return f"/execution-spec-tests/{github_ref_name}/"
+            return f"/docs/{github_ref_name}/"
         if ci and not github_ref_name:
             raise Exception(
                 "Failed to determine target doc version "
                 "(no GITHUB_REF_NAME env?)."
             )
-        if (
-            "--strict" in sys.argv or "deploy" in sys.argv
-        ) and not doc_version:
-            # assume we're trying to deploy manually via mike (locally)
-            raise Exception(
-                "Failed to determine target doc version during strict build "
-                "(set GEN_TEST_DOC_VERSION env var)."
-            )
-        # local test build, e.g. via `uv run mkdocs serve`
-        return "/execution-spec-tests/"
+        # local test build, e.g. via `uv run mkdocs serve` or tox
+        return "/"
 
     def add_global_page_props_to_env(self) -> None:
         """Populate global page properties used in j2 templates."""
