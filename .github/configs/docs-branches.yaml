@@ -18,3 +18,6 @@ branches:
     label: "Amsterdam"
   - path: "devnets/amsterdam/2"
     label: "Amsterdam Devnet 2"
+  # TEMPORARY: Remove after testing
+  - path: "forks/amsterdocs"
+    label: "Test Branch"
