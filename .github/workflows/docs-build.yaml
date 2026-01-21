@@ -1,0 +1,245 @@
+# Build Docs
+#
+# Dual-purpose workflow:
+#   - On PRs: Tests that MkDocs and spec-docs build successfully
+#   - On push to allowlisted branches: Builds, uploads artifacts, and triggers
+#     the aggregator workflow in steel-website for deployment
+#
+# Site structure at steel.ethereum.foundation/docs/:
+#   /docs/              - Default branch docs (mirrored)
+#   /docs/spec/         - Default branch spec (mirrored)
+#   /docs/<branch>/     - Branch-specific docs
+#   /docs/<branch>/spec - Branch-specific spec
+
+name: Build Docs
+
+on:
+  push:
+    branches:
+      - mainnet
+      - "forks/**"
+      - "devnets/**"
+      - "eips/**"
+    paths: &docs_paths
+      - "src/ethereum/**"
+      - "tests/**"
+      - "docs/**"
+      - "packages/testing/**"
+      - "static/**"
+      - "mkdocs.yml"
+      - "uv.lock"
+      - "pyproject.toml"
+      - ".github/workflows/docs-build.yaml"
+      - ".github/configs/docs-branches.yaml"
+
+  pull_request:
+    paths: *docs_paths
+
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build (must be allowlisted)"
+        required: false
+        type: string
+
+concurrency:
+  group: docs-producer-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Check if the branch is in the allowlist
+  check-allowlist:
+    name: "Check Branch Allowlist"
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+      branch: ${{ steps.check.outputs.branch }}
+      branch_slug_safe: ${{ steps.check.outputs.branch_slug_safe }}
+      is_deploy: ${{ steps.check.outputs.is_deploy }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/configs/docs-branches.yaml
+          sparse-checkout-cone-mode: false
+
+      - name: Check branch allowlist
+        id: check
+        run: |
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # Create safe slug for artifact naming (replace / with -)
+          BRANCH_SLUG_SAFE="${BRANCH//\//-}"
+          echo "branch_slug_safe=$BRANCH_SLUG_SAFE" >> "$GITHUB_OUTPUT"
+
+          # Determine if this is a deploy run (push to allowlisted branch, not PR)
+          IS_DEPLOY="false"
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_DEPLOY="true"
+          fi
+          echo "is_deploy=$IS_DEPLOY" >> "$GITHUB_OUTPUT"
+
+          # Extract branch paths from config
+          ALLOWLISTED_BRANCHES=$(yq '.branches[].path' .github/configs/docs-branches.yaml 2>/dev/null || echo "")
+
+          if [ -z "$ALLOWLISTED_BRANCHES" ]; then
+            echo "ERROR: Could not read allowlist from .github/configs/docs-branches.yaml"
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check if branch is in allowlist
+          if echo "$ALLOWLISTED_BRANCHES" | grep -qxF "$BRANCH"; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Branch '$BRANCH' is allowlisted"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Branch '$BRANCH' is NOT allowlisted"
+            echo "Allowlisted branches:"
+            # shellcheck disable=SC2001 # sed is appropriate for multi-line prefix
+            echo "$ALLOWLISTED_BRANCHES" | sed 's/^/  - /'
+          fi
+
+  # Build documentation
+  build:
+    name: "Build Documentation"
+    runs-on: ubuntu-latest
+    needs: check-allowlist
+    # Always build for PRs (for testing), only build for push if allowlisted
+    if: github.event_name == 'pull_request' || needs.check-allowlist.outputs.allowed == 'true'
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # Full history for git-authors plugin
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb # v6.1.0
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Build MkDocs documentation
+        run: |
+          BRANCH="${{ needs.check-allowlist.outputs.branch }}"
+
+          # Set site URL based on whether this is a deploy or PR build
+          if [ "${{ needs.check-allowlist.outputs.is_deploy }}" = "true" ]; then
+            export SITE_URL="https://steel.ethereum.foundation/docs/${BRANCH}/"
+          else
+            # PR build - use a placeholder URL for testing
+            export SITE_URL="https://example.com/docs/${BRANCH}/"
+          fi
+
+          echo "Building MkDocs with site_url: $SITE_URL"
+          uv run mkdocs build --site-dir .tox/docs-site --strict
+
+      - name: Build rendered spec
+        run: |
+          uv run docc --output .tox/docs-spec
+
+      - name: Stage artifact contents
+        run: |
+          BRANCH="${{ needs.check-allowlist.outputs.branch }}"
+
+          mkdir -p "stage/${BRANCH}/spec"
+
+          # Copy MkDocs output
+          rsync -av .tox/docs-site/ "stage/${BRANCH}/"
+
+          # Copy spec output into spec/ subdirectory
+          rsync -av .tox/docs-spec/ "stage/${BRANCH}/spec/"
+
+          # Generate metadata
+          cat > "stage/${BRANCH}/metadata.json" << EOF
+          {
+            "branch": "${BRANCH}",
+            "branch_slug": "${BRANCH}",
+            "commit_sha": "${GITHUB_SHA}",
+            "commit_sha_short": "${GITHUB_SHA:0:7}",
+            "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "build_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          }
+          EOF
+
+          # Add .nojekyll
+          touch "stage/.nojekyll"
+
+          echo "Staged content for branch: $BRANCH"
+          ls -la "stage/${BRANCH}/"
+
+      - name: Validate staged output
+        run: |
+          BRANCH="${{ needs.check-allowlist.outputs.branch }}"
+
+          # Check MkDocs entrypoint exists
+          if [ ! -f "stage/${BRANCH}/index.html" ]; then
+            echo "ERROR: Missing stage/${BRANCH}/index.html"
+            exit 1
+          fi
+
+          # Check spec entrypoint exists
+          if [ ! -f "stage/${BRANCH}/spec/index.html" ]; then
+            echo "ERROR: Missing stage/${BRANCH}/spec/index.html"
+            exit 1
+          fi
+
+          # Check metadata exists
+          if [ ! -f "stage/${BRANCH}/metadata.json" ]; then
+            echo "ERROR: Missing stage/${BRANCH}/metadata.json"
+            exit 1
+          fi
+
+          echo "Validation passed"
+          echo ""
+          echo "=== Staged content summary ==="
+          du -sh "stage/${BRANCH}/"
+          du -sh "stage/${BRANCH}/spec/"
+
+      - name: Upload docs artifact
+        if: needs.check-allowlist.outputs.is_deploy == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: docs-${{ needs.check-allowlist.outputs.branch_slug_safe }}
+          path: stage/
+          retention-days: 90
+          if-no-files-found: error
+
+  # Trigger the aggregator workflow in steel-website
+  trigger-aggregator:
+    name: "Trigger Aggregator"
+    runs-on: ubuntu-latest
+    needs: [check-allowlist, build]
+    # Only trigger on push/dispatch to allowlisted branches (not PRs)
+    if: needs.check-allowlist.outputs.is_deploy == 'true' && needs.check-allowlist.outputs.allowed == 'true'
+
+    steps:
+      - name: Trigger aggregator workflow
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+        with:
+          token: ${{ secrets.STEEL_WEBSITE_DISPATCH_TOKEN }}
+          repository: ethereum/steel-website
+          event-type: docs-artifact-ready
+          client-payload: |
+            {
+              "branch": "${{ needs.check-allowlist.outputs.branch }}",
+              "sha": "${{ github.sha }}",
+              "run_id": "${{ github.run_id }}"
+            }
+
+      - name: Log trigger status
+        run: |
+          echo "Triggered aggregator workflow in ethereum/steel-website"
+          echo "  Branch: ${{ needs.check-allowlist.outputs.branch }}"
+          echo "  SHA: ${{ github.sha }}"
+          echo "  Run ID: ${{ github.run_id }}"
