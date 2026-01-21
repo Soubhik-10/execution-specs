@@ -19,9 +19,8 @@ from execution_testing.cli.pytest_commands.plugins.filler.gen_test_doc import (
 )
 from execution_testing.config import DocsConfig
 
-importlib.reload(
-    gen_test_doc
-)  # get changes in plugin to trigger an update for `mkdocs serve`
+# Reload to get changes in plugin to trigger an update for `mkdocs serve`
+importlib.reload(gen_test_doc)
 
 TARGET_FORK = DocsConfig().TARGET_FORK
 GENERATE_UNTIL_FORK = DocsConfig().GENERATE_UNTIL_FORK
@@ -40,9 +39,9 @@ test_arg = "tests"
 fast_mode = getenv("FAST_DOCS")
 if fast_mode is not None:
     if fast_mode.lower() == "true":
-        print(
-            "-" * 40, "\nWill generate docs using FAST_DOCS mode.\n" + "-" * 40
-        )
+        print("-" * 40)
+        print("Will generate docs using FAST_DOCS mode.")
+        print("-" * 40)
         test_arg = "tests/frontier"
 
 args = [
