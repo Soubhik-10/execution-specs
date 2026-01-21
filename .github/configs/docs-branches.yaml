@@ -1,0 +1,20 @@
+# Configuration for documentation branches to build and publish
+#
+# This file is used by the docs-producer workflow to determine which branches
+# should have their documentation built and published to steel.ethereum.foundation/docs/
+#
+# Each branch entry defines:
+#   - path: The branch name/path (must match the Git branch exactly)
+#   - label: Human-readable label for version switcher UI
+#
+# The default branch is mirrored to the root of /docs/
+
+default: "forks/amsterdam"
+
+branches:
+  - path: "mainnet"
+    label: "Mainnet"
+  - path: "forks/amsterdam"
+    label: "Amsterdam"
+  - path: "devnets/amsterdam/2"
+    label: "Amsterdam Devnet 2"
