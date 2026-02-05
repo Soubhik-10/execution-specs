@@ -592,23 +592,39 @@ class IteratingBytecode(Bytecode):
         self, *, fork: Type[ForkOpcodeInterface], iteration_count: int
     ) -> int:
         """Return the cost of iterating through the bytecode N times."""
+        # Cache component gas costs since they're constant for a given fork.
+        # This avoids O(bytecode_size) iteration on every call during binary
+        # search.
+        cache_key = id(fork)
+        if not hasattr(self, "_gas_cost_cache"):
+            self._gas_cost_cache: dict[
+                int, tuple[int, int, int, int, int]
+            ] = {}
+        if cache_key not in self._gas_cost_cache:
+            self._gas_cost_cache[cache_key] = (
+                self.setup.gas_cost(fork=fork),
+                self.iterating.gas_cost(fork=fork),
+                self.warm_iterating.gas_cost(fork=fork),
+                self.iterating_subcall_gas_cost(fork=fork),
+                self.cleanup.gas_cost(fork=fork),
+            )
+        (
+            setup_cost,
+            iterating_cost,
+            warm_iterating_cost,
+            subcall_cost,
+            cleanup_cost,
+        ) = self._gas_cost_cache[cache_key]
+
         loop_gas_cost = 0
         if iteration_count > 0:
             # Cold cost is just charged for the first iteration
-            loop_gas_cost = self.iterating.gas_cost(fork=fork)
+            loop_gas_cost = iterating_cost
             # Warm cost is charged for all iterations except the first
-            loop_gas_cost += self.warm_iterating.gas_cost(fork=fork) * (
-                iteration_count - 1
-            )
+            loop_gas_cost += warm_iterating_cost * (iteration_count - 1)
             # Subcall cost is charged for all iterations.
-            loop_gas_cost += (
-                self.iterating_subcall_gas_cost(fork=fork) * iteration_count
-            )
-        return (
-            self.setup.gas_cost(fork=fork)
-            + loop_gas_cost
-            + self.cleanup.gas_cost(fork=fork)
-        )
+            loop_gas_cost += subcall_cost * iteration_count
+        return setup_cost + loop_gas_cost + cleanup_cost
 
     def with_fixed_iteration_count(
         self, *, iteration_count: int
