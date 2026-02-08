@@ -1037,9 +1037,23 @@ def process_transaction(
     block_gas_used_in_tx = max(
         tx_gas_used_before_refund, calldata_floor_gas_cost
     )
+    print("\n----- GAS DEBUG -----")
+    print("tx.gas_limit                =", tx.gas)
+    print("intrinsic + execution gas   =", tx_gas_used_before_refund)
+    print("refund_counter              =", tx_output.refund_counter)
+    print("max_refund (1/5 rule)       =", tx_gas_used_before_refund // Uint(5))
+    print("effective_refund            =", tx_gas_refund)
+    print("gas_used_after_refund       =", tx_gas_used_after_refund)
+    print("calldata_floor_gas_cost     =", calldata_floor_gas_cost)
+    print("tx_gas_used (USER PAYS)     =", tx_gas_used)
+    print("block_gas_used_in_tx (EIP7778) =", block_gas_used_in_tx)
+    print("----------------------\n")
 
     tx_gas_left = tx.gas - tx_gas_used
     gas_refund_amount = tx_gas_left * effective_gas_price
+    print("tx_gas_left_after_floor     =", tx_gas_left)
+    print("effective_gas_price         =", effective_gas_price)
+    print("gas_refund_amount (wei)     =", gas_refund_amount)
 
     # For non-1559 transactions effective_gas_price == tx.gas_price
     priority_fee_per_gas = effective_gas_price - block_env.base_fee_per_gas
@@ -1070,6 +1084,9 @@ def process_transaction(
         block_env.coinbase,
         coinbase_balance_after_mining_fee,
     )
+    print("base_fee_per_gas            =", block_env.base_fee_per_gas)
+    print("priority_fee_per_gas        =", priority_fee_per_gas)
+    print("miner_fee (wei)             =", transaction_fee)
 
     # EIP-7708: Emit burn logs for balances held by accounts marked for
     # deletion AFTER miner fee transfer.
@@ -1099,6 +1116,11 @@ def process_transaction(
     block_output.cumulative_gas_used += tx_gas_used
     block_output.block_gas_used += block_gas_used_in_tx
     block_output.blob_gas_used += tx_blob_gas_used
+    print("BLOCK cumulative_gas_used   =", block_output.cumulative_gas_used)
+    print("BLOCK block_gas_used        =", block_output.block_gas_used)
+    print("BLOCK blob_gas_used         =", block_output.blob_gas_used)
+    print("===== END GAS DEBUG =====\n")
+
 
     receipt = make_receipt(
         tx,
