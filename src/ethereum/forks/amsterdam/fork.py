@@ -13,7 +13,7 @@ Entry point for the Ethereum specification.
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
-import click
+import logging
 from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes
 from ethereum_types.numeric import U64, U256, Uint
@@ -103,6 +103,9 @@ from .vm.gas import (
     calculate_total_blob_gas,
 )
 from .vm.interpreter import MessageCallOutput, process_message_call
+
+
+logger = logging.getLogger(__name__)
 
 BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(8)
 ELASTICITY_MULTIPLIER = Uint(2)
@@ -1014,7 +1017,7 @@ def process_transaction(
         tx_hash=get_transaction_hash(encode_transaction(tx)),
         state_changes=tx_state_changes,
     )
-    click.echo(f"tx sender {sender}")
+    logger.info("\n----tx sender is =%s -----",sender)
 
     message = prepare_message(
         block_env,
@@ -1039,33 +1042,33 @@ def process_transaction(
         tx_gas_used_before_refund, calldata_floor_gas_cost
     )
 
-    click.echo("\n----- GAS DEBUG -----")
-    click.echo(f"tx.gas_limit                = {tx.gas}")
-    click.echo(f"intrinsic + execution gas   = {tx_gas_used_before_refund}")
-    click.echo(f"refund_counter              = {tx_output.refund_counter}")
-    click.echo(f"max_refund (1/5 rule)       = {tx_gas_used_before_refund // Uint(5)}")
-    click.echo(f"effective_refund            = {tx_gas_refund}")
-    click.echo(f"gas_used_after_refund       = {tx_gas_used_after_refund}")
-    click.echo(f"calldata_floor_gas_cost     = {calldata_floor_gas_cost}")
-    click.echo(f"tx_gas_used (USER PAYS)     = {tx_gas_used}")
-    click.echo(f"block_gas_used_in_tx (EIP7778) = {block_gas_used_in_tx}")
-    click.echo("----------------------\n")
+    logger.info("\n----- GAS DEBUG -----")
+    logger.info("tx.gas_limit                = %s", tx.gas)
+    logger.info("intrinsic + execution gas   = %s", tx_gas_used_before_refund)
+    logger.info("refund_counter              = %s", tx_output.refund_counter)
+    logger.info("max_refund (1/5 rule)       = %s", tx_gas_used_before_refund // Uint(5))
+    logger.info("effective_refund            = %s", tx_gas_refund)
+    logger.info("gas_used_after_refund       = %s", tx_gas_used_after_refund)
+    logger.info("calldata_floor_gas_cost     = %s", calldata_floor_gas_cost)
+    logger.info("tx_gas_used (USER PAYS)     = %s", tx_gas_used)
+    logger.info("block_gas_used_in_tx (EIP7778) = %s", block_gas_used_in_tx)
+    logger.info("----------------------")
 
     tx_gas_left = tx.gas - tx_gas_used
     gas_refund_amount = tx_gas_left * effective_gas_price
 
-    click.echo(f"tx_gas_left_after_floor     = {tx_gas_left}")
-    click.echo(f"effective_gas_price         = {effective_gas_price}")
-    click.echo(f"gas_refund_amount (wei)     = {gas_refund_amount}")
+    logger.info("tx_gas_left_after_floor     = %s", tx_gas_left)
+    logger.info("effective_gas_price         = %s", effective_gas_price)
+    logger.info("gas_refund_amount (wei)     = %s", gas_refund_amount)
 
     # For non-1559 transactions effective_gas_price == tx.gas_price
     priority_fee_per_gas = effective_gas_price - block_env.base_fee_per_gas
     transaction_fee = tx_gas_used * priority_fee_per_gas
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        block_env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = (
+        get_account(block_env.state, sender).balance + U256(gas_refund_amount)
+    )
     set_account_balance(block_env.state, sender, sender_balance_after_refund)
     track_balance_change(
         tx_env.state_changes,
@@ -1074,9 +1077,10 @@ def process_transaction(
     )
 
     # transfer miner fees
-    coinbase_balance_after_mining_fee = get_account(
-        block_env.state, block_env.coinbase
-    ).balance + U256(transaction_fee)
+    coinbase_balance_after_mining_fee = (
+        get_account(block_env.state, block_env.coinbase).balance
+        + U256(transaction_fee)
+    )
     set_account_balance(
         block_env.state,
         block_env.coinbase,
@@ -1088,9 +1092,9 @@ def process_transaction(
         coinbase_balance_after_mining_fee,
     )
 
-    click.echo(f"base_fee_per_gas            = {block_env.base_fee_per_gas}")
-    click.echo(f"priority_fee_per_gas        = {priority_fee_per_gas}")
-    click.echo(f"miner_fee (wei)             = {transaction_fee}")
+    logger.info("base_fee_per_gas            = %s", block_env.base_fee_per_gas)
+    logger.info("priority_fee_per_gas        = %s", priority_fee_per_gas)
+    logger.info("miner_fee (wei)             = %s", transaction_fee)
 
     # EIP-7708: Emit burn logs for balances held by accounts marked for
     # deletion AFTER miner fee transfer.
@@ -1112,8 +1116,9 @@ def process_transaction(
 
     all_logs = tx_output.logs + tuple(finalization_logs)
 
-    if coinbase_balance_after_mining_fee == 0 and account_exists_and_is_empty(
-        block_env.state, block_env.coinbase
+    if (
+        coinbase_balance_after_mining_fee == 0
+        and account_exists_and_is_empty(block_env.state, block_env.coinbase)
     ):
         destroy_account(block_env.state, block_env.coinbase)
 
@@ -1121,10 +1126,10 @@ def process_transaction(
     block_output.block_gas_used += block_gas_used_in_tx
     block_output.blob_gas_used += tx_blob_gas_used
 
-    click.echo(f"BLOCK cumulative_gas_used   = {block_output.cumulative_gas_used}")
-    click.echo(f"BLOCK block_gas_used        = {block_output.block_gas_used}")
-    click.echo(f"BLOCK blob_gas_used         = {block_output.blob_gas_used}")
-    click.echo("===== END GAS DEBUG =====\n")
+    logger.info("BLOCK cumulative_gas_used   = %s", block_output.cumulative_gas_used)
+    logger.info("BLOCK block_gas_used        = %s", block_output.block_gas_used)
+    logger.info("BLOCK blob_gas_used         = %s", block_output.blob_gas_used)
+    logger.info("===== END GAS DEBUG =====")
 
     receipt = make_receipt(
         tx,
@@ -1151,6 +1156,7 @@ def process_transaction(
     # EIP-7928: Commit transaction frame (includes net-zero filtering).
     # Must happen AFTER destroy_account so filtering sees correct state.
     commit_transaction_frame(tx_env.state_changes)
+
 
 
 
