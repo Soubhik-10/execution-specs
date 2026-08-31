@@ -113,6 +113,7 @@ class RethExceptionMapper(ExceptionMapper):
             r"multiple EIP-8141 expiry verifier frames|"
             r"EIP-8141 arbitrary signature signer must be empty|"
             r"EIP-8141 protocol signature signer must be empty or 20 bytes|"
+            r"EIP-8141 signature signer does not match|"
             r"EIP-8141 signature message must be empty or 32 bytes|"
             r"EIP-8141 explicit signature message cannot be zero"
             r"|invalid EIP-8141 frame mode|"
