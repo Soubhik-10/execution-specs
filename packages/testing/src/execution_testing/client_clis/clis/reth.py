@@ -24,6 +24,8 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.PRIORITY_GREATER_THAN_MAX_FEE_PER_GAS: (
             "priority fee is greater than max fee"
         ),
+        TransactionException.GASPRICE_OVERFLOW: "overflow",
+        TransactionException.PRIORITY_OVERFLOW: "overflow",
         TransactionException.GASLIMIT_PRICE_PRODUCT_OVERFLOW: "overflow",
         TransactionException.TYPE_3_TX_CONTRACT_CREATION: "unexpected length",
         TransactionException.TYPE_3_TX_WITH_FULL_BLOBS: "unexpected list",
@@ -31,8 +33,8 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.INVALID_SIGNATURE_VRS: (
             "invalid bool value, must be 0 or 1"
         ),
-        TransactionException.TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH: (
-            "blob version not supported"
+        TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED: (
+            "expected blob versioned hashes do not match the given transactions"
         ),
         TransactionException.TYPE_3_TX_ZERO_BLOBS: "empty blobs",
         TransactionException.TYPE_4_EMPTY_AUTHORIZATION_LIST: (
@@ -56,6 +58,7 @@ class RethExceptionMapper(ExceptionMapper):
         BlockException.INVALID_LOG_BLOOM: "header bloom filter mismatch",
     }
     mapping_regex = {
+        TransactionException.NONCE_IS_MAX: r"nonce overflow in transaction",
         TransactionException.NONCE_MISMATCH_TOO_LOW: (
             r"nonce \d+ too low, expected \d+"
         ),
@@ -79,6 +82,10 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED: (
             r"too many blobs, have \d+, max \d+"
         ),
+        TransactionException.TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH: (
+            r"blob version not supported|"
+            r"expected blob versioned hashes do not match the given transactions"
+        ),
         TransactionException.TYPE_3_TX_PRE_FORK: (
             r"blob transactions present in pre-cancun payload|empty blobs"
         ),
@@ -90,7 +97,7 @@ class RethExceptionMapper(ExceptionMapper):
             r"transaction gas limit.*is greater than the cap"
         ),
         TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
-            r"unexpected string|unexpected list|"
+            r"overflow|unexpected string|unexpected list|"
             r"EIP-8141 frame count must be in 1\.\.=64|"
             r"EIP-8141 derived gas limit overflow|"
             r"EIP-8141 transaction gas limit is not canonical|"
@@ -108,6 +115,9 @@ class RethExceptionMapper(ExceptionMapper):
             r"EIP-8141 protocol signature signer must be empty or 20 bytes|"
             r"EIP-8141 signature message must be empty or 32 bytes|"
             r"EIP-8141 explicit signature message cannot be zero"
+            r"|invalid EIP-8141 frame mode|"
+            r"invalid EIP-8141 signature scheme|"
+            r"transaction gas limit \d+ is more than blocks available gas \d+"
         ),
         TransactionException.TYPE_6_INVALID_SIGNATURE: (
             r"EIP-8141 signature validation failed"
