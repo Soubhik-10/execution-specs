@@ -42,6 +42,9 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.TYPE_4_TX_PRE_FORK: (
             "eip 7702 transactions present in pre-prague payload"
         ),
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
+            "Eip8141 transaction has invalid fields"
+        ),
         BlockException.INVALID_REQUESTS: "mismatched block requests hash",
         BlockException.INVALID_RECEIPTS_ROOT: "receipt root mismatch",
         BlockException.INVALID_STATE_ROOT: "mismatched block state root",
@@ -85,6 +88,34 @@ class RethExceptionMapper(ExceptionMapper):
         ),
         TransactionException.GAS_LIMIT_EXCEEDS_MAXIMUM: (
             r"transaction gas limit.*is greater than the cap"
+        ),
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
+            r"unexpected string|unexpected list|"
+            r"EIP-8141 frame count must be in 1\.\.=64|"
+            r"EIP-8141 derived gas limit overflow|"
+            r"EIP-8141 transaction gas limit is not canonical|"
+            r"EIP-8141 calldata floor overflow|"
+            r"overflow payment in transaction|"
+            r"EIP-8141 reserved frame flag is set|"
+            r"EIP-8141 frame target must be empty or 20 bytes|"
+            r"only EIP-8141 SENDER frames may transfer value|"
+            r"EIP-8141 execution approval target must be the sender|"
+            r"EIP-8141 atomic flag is invalid on VERIFY frames|"
+            r"EIP-8141 atomic batch must be followed by a non-VERIFY frame|"
+            r"malformed EIP-8141 expiry verifier frame|"
+            r"multiple EIP-8141 expiry verifier frames|"
+            r"EIP-8141 arbitrary signature signer must be empty|"
+            r"EIP-8141 protocol signature signer must be empty or 20 bytes|"
+            r"EIP-8141 signature message must be empty or 32 bytes|"
+            r"EIP-8141 explicit signature message cannot be zero"
+        ),
+        TransactionException.TYPE_6_INVALID_SIGNATURE: (
+            r"EIP-8141 signature validation failed"
+        ),
+        TransactionException.TYPE_6_INVALID_FRAME_EXECUTION: (
+            r"EIP-8141 SENDER frame executed before execution approval|"
+            r"EIP-8141 VERIFY frame failed|"
+            r"EIP-8141 transaction did not approve a payer"
         ),
         BlockException.SYSTEM_CONTRACT_CALL_FAILED: (
             r"failed to apply .* requests contract call"
