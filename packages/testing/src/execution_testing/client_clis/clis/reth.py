@@ -109,6 +109,7 @@ class RethExceptionMapper(ExceptionMapper):
             r"EIP-8141 execution approval target must be the sender|"
             r"EIP-8141 atomic flag is invalid on VERIFY frames|"
             r"EIP-8141 atomic batch must be followed by a non-VERIFY frame|"
+            r"EIP-8141 atomic batch frames cannot carry approval scope|"
             r"malformed EIP-8141 expiry verifier frame|"
             r"multiple EIP-8141 expiry verifier frames|"
             r"EIP-8141 arbitrary signature signer must be empty|"
