@@ -46,6 +46,12 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.TYPE_4_TX_PRE_FORK: (
             "eip 7702 transactions present in pre-prague payload"
         ),
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
+            "Eip8141 transaction has invalid fields"
+        ),
+        TransactionException.TYPE_6_INVALID_SIGNATURE: (
+            "EIP-8141 signature validation failed"
+        ),
         BlockException.INVALID_REQUESTS: "mismatched block requests hash",
         BlockException.INVALID_RECEIPTS_ROOT: "receipt root mismatch",
         BlockException.INVALID_STATE_ROOT: "mismatched block state root",
@@ -167,19 +173,8 @@ class RethExceptionMapper(ExceptionMapper):
             r"failed to decode deposit requests from receipts|"
             r"mismatched block requests hash"
         ),
-    }
-
-    # Frames labels are currently defined on devnet branches. Register
-    # their mappings only when the framework provides the labels.
-    _frame_format = TransactionException.__members__.get(
-        "TYPE_6_INVALID_FRAME_FORMAT"
-    )
-    if _frame_format is not None:
-        mapping_substring[_frame_format] = (
-            "Eip8141 transaction has invalid fields"
-        )
         # Generic overflow and block capacity errors are not frame formats.
-        mapping_regex[_frame_format] = (
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
             r"invalid EIP-8141 frame format:|"
             r"invalid EIP-8141 address length|"
             r"invalid EIP-8141 frame mode|"
@@ -205,22 +200,10 @@ class RethExceptionMapper(ExceptionMapper):
             r"EIP-8250 requires between 1 and 16 nonce keys|"
             r"EIP-8250 nonce key exceeds 256 bits|"
             r"EIP-8250 nonce sequence exceeds 64 bits"
-        )
-
-    _frame_signature = TransactionException.__members__.get(
-        "TYPE_6_INVALID_SIGNATURE"
-    )
-    if _frame_signature is not None:
-        mapping_substring[_frame_signature] = (
-            "EIP-8141 signature validation failed"
-        )
-
-    _frame_execution = TransactionException.__members__.get(
-        "TYPE_6_INVALID_FRAME_EXECUTION"
-    )
-    if _frame_execution is not None:
-        mapping_regex[_frame_execution] = (
+        ),
+        TransactionException.TYPE_6_INVALID_FRAME_EXECUTION: (
             r"EIP-8141 SENDER frame executed before execution approval|"
             r"EIP-8141 VERIFY frame failed|"
             r"EIP-8141 transaction did not approve a payer"
-        )
+        ),
+    }
