@@ -198,10 +198,13 @@ class RethExceptionMapper(ExceptionMapper):
             r"EIP-8141 arbitrary signature signer must be empty|"
             r"EIP-8141 signature signer does not match|"
             r"EIP-7906 atomic flag is invalid on POST_TX frames|"
+            r"EIP-7906 atomic batch cannot end on a POST_TX frame|"
             r"EIP-7906 POST_TX frames must form a trailing suffix|"
             r"EIP-8250 nonce key zero must be the only key|"
             r"EIP-8250 nonce keys must be strictly increasing|"
-            r"EIP-8250 requires between 1 and 16 nonce keys"
+            r"EIP-8250 requires between 1 and 16 nonce keys|"
+            r"EIP-8250 nonce key exceeds 256 bits|"
+            r"EIP-8250 nonce sequence exceeds 64 bits"
         )
 
     _frame_signature = TransactionException.__members__.get(
