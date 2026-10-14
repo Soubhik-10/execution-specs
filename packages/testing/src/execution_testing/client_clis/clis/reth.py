@@ -70,8 +70,6 @@ class RethExceptionMapper(ExceptionMapper):
             r"Failed to recover the signer|"
             r"Unexpected type flag"
         ),
-        # The keyed-nonce error does not report the sequence or direction,
-        # so it can represent either a too-low or a too-high nonce.
         TransactionException.NONCE_MISMATCH_TOO_LOW: (
             r"nonce \d+ too low, expected \d+|"
             r"EIP-8250 nonce sequence mismatch"
@@ -173,7 +171,6 @@ class RethExceptionMapper(ExceptionMapper):
             r"failed to decode deposit requests from receipts|"
             r"mismatched block requests hash"
         ),
-        # Generic overflow and block capacity errors are not frame formats.
         TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
             r"invalid EIP-8141 frame format:|"
             r"invalid EIP-8141 address length|"
