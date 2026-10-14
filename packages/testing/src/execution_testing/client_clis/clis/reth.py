@@ -46,6 +46,12 @@ class RethExceptionMapper(ExceptionMapper):
         TransactionException.TYPE_4_TX_PRE_FORK: (
             "eip 7702 transactions present in pre-prague payload"
         ),
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
+            "Eip8141 transaction has invalid fields"
+        ),
+        TransactionException.TYPE_6_INVALID_SIGNATURE: (
+            "EIP-8141 signature validation failed"
+        ),
         BlockException.INVALID_REQUESTS: "mismatched block requests hash",
         BlockException.INVALID_RECEIPTS_ROOT: "receipt root mismatch",
         BlockException.INVALID_STATE_ROOT: "mismatched block state root",
@@ -166,5 +172,38 @@ class RethExceptionMapper(ExceptionMapper):
         BlockException.INVALID_DEPOSIT_EVENT_LAYOUT: (
             r"failed to decode deposit requests from receipts|"
             r"mismatched block requests hash"
+        ),
+        # Generic overflow and block capacity errors are not frame formats.
+        TransactionException.TYPE_6_INVALID_FRAME_FORMAT: (
+            r"invalid EIP-8141 frame format:|"
+            r"invalid EIP-8141 address length|"
+            r"invalid EIP-8141 frame mode|"
+            r"invalid EIP-8141 signature scheme|"
+            r"invalid EIP-8141 signature message length|"
+            r"EIP-8141 signature message must be nonzero|"
+            r"EIP-8141 frame count must be in 1\.\.=64|"
+            r"EIP-8141 reserved frame flag is set|"
+            r"only EIP-8141 SENDER frames may transfer value|"
+            r"EIP-8141 execution approval target must be the sender|"
+            r"EIP-8141 atomic flag is invalid on VERIFY frames|"
+            r"EIP-8141 atomic batch must be followed by a non-VERIFY frame|"
+            r"EIP-8141 atomic batch frames cannot carry approval scope|"
+            r"malformed EIP-8141 expiry verifier frame|"
+            r"multiple EIP-8141 expiry verifier frames|"
+            r"EIP-8141 arbitrary signature signer must be empty|"
+            r"EIP-8141 signature signer does not match|"
+            r"EIP-7906 atomic flag is invalid on POST_TX frames|"
+            r"EIP-7906 atomic batch cannot end on a POST_TX frame|"
+            r"EIP-7906 POST_TX frames must form a trailing suffix|"
+            r"EIP-8250 nonce key zero must be the only key|"
+            r"EIP-8250 nonce keys must be strictly increasing|"
+            r"EIP-8250 requires between 1 and 16 nonce keys|"
+            r"EIP-8250 nonce key exceeds 256 bits|"
+            r"EIP-8250 nonce sequence exceeds 64 bits"
+        ),
+        TransactionException.TYPE_6_INVALID_FRAME_EXECUTION: (
+            r"EIP-8141 SENDER frame executed before execution approval|"
+            r"EIP-8141 VERIFY frame failed|"
+            r"EIP-8141 transaction did not approve a payer"
         ),
     }
